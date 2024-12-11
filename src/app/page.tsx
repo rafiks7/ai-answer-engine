@@ -45,11 +45,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    console.log('messages', messages)
-  }, [messages])
-
-
   // TODO: Modify the color schemes, fonts, and UI as needed for a good user experience
   // Refer to the Tailwind CSS docs here: https://tailwindcss.com/docs/customizing-colors, and here: https://tailwindcss.com/docs/hover-focus-and-other-states
   return (
