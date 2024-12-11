@@ -13,7 +13,7 @@ export default function Home() {
     { role: "ai", content: "Hello! How can I help you today?" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
-
+  
   const handleSend = async () => {
     if (!message.trim()) return;
 
@@ -29,12 +29,10 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
 
-      // TODO: Handle the response from the chat API to display the AI response in the UI
       const data = await response.json();
-      console.log('data.body', data.body)
       const aiMessage: Message = { role: "ai", content: data.body };
       setMessages(prev => [...prev, aiMessage]);
 
