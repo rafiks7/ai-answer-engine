@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Message = {
   role: "user" | "ai";
@@ -33,9 +33,10 @@ export default function Home() {
       });
 
       // TODO: Handle the response from the chat API to display the AI response in the UI
-
-
-
+      const data = await response.json();
+      console.log('data.body', data.body)
+      const aiMessage: Message = { role: "ai", content: data.body };
+      setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {
       console.error("Error:", error);
@@ -43,6 +44,10 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log('messages', messages)
+  }, [messages])
 
 
   // TODO: Modify the color schemes, fonts, and UI as needed for a good user experience
