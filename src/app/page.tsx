@@ -14,10 +14,10 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   
+  
   const handleSend = async () => {
     if (!message.trim()) return;
 
-    // Add user message to the conversation
     const userMessage = { role: "user" as const, content: message };
     setMessages(prev => [...prev, userMessage]);
     setMessage("");
@@ -31,6 +31,7 @@ export default function Home() {
         },
         body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
+      
 
       const data = await response.json();
       const aiMessage: Message = { role: "ai", content: data.body };
@@ -108,12 +109,12 @@ export default function Home() {
               type="text"
               value={message}
               onChange={e => setMessage(e.target.value)}
-              onKeyPress={e => e.key === "Enter" && handleSend()}
+              onKeyDown={e => e.key === "Enter" && handleSend()}
               placeholder="Type your message..."
               className="flex-1 rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent placeholder-gray-400"
             />
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={isLoading}
               className="bg-cyan-600 text-white px-5 py-3 rounded-xl hover:bg-cyan-700 transition-all disabled:bg-cyan-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
