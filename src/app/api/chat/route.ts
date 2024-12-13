@@ -6,7 +6,7 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import { getTopResultsFromGoogle, scrapeWebPage } from "@/app/utils/scraper";
-import { systemPrompt, systemPrompt2 } from "@/app/utils/prompts";
+import { systemPrompt, webSystemPrompt } from "@/app/utils/prompts";
 
 type Message = {
   role: "user" | "assistant" | "system" | "ai";
@@ -19,20 +19,16 @@ export async function POST(req: Request) {
       apiKey: process.env.GROQ_API_KEY,
     });
 
+    // Get the messages from the request body
     const { messages } = await req.json();
     const userMessage = messages[messages.length - 1];
 
-    const results = await getTopResultsFromGoogle(userMessage.content);
-    console.log("title:", results[0].title);
-
-    const scrapedPage = await scrapeWebPage(results[0].link);
-    console.log("scrapedPage:", scrapedPage);
-
     let completion;
+    // Check if the AI needs to do a web search
     try {
       completion = await client.chat.completions.create({
         messages: [
-          { role: "system", content: systemPrompt2 },
+          { role: "system", content: webSystemPrompt },
           ...messages.map((msg: Message) => ({
             role: msg.role === "ai" ? "assistant" : msg.role,
             content: msg.content,
@@ -52,16 +48,24 @@ export async function POST(req: Request) {
 
     let response = completion.choices[0].message.content;
     let searchNeeded = false;
+    let googleQuery = "";
+    let numberOfArticles = 0;
     if (response) {
       searchNeeded = JSON.parse(response).search_needed;
+      googleQuery = JSON.parse(response).google_query;
+      numberOfArticles = JSON.parse(response).max_articles;
     }
 
     console.log("searchNeeded:", searchNeeded);
+    console.log("googleQuery:", googleQuery);
+    console.log("numberOfArticles:", numberOfArticles);
 
+    // if a search is needed, get the top search results from Google
     if (searchNeeded) {
       let topResults;
       try {
-        topResults = await getTopResultsFromGoogle(userMessage.content);
+        // Get the top search results from Google
+        topResults = await getTopResultsFromGoogle(googleQuery, numberOfArticles);
       } catch (error) {
         console.error("Error fetching search results:", error);
         return NextResponse.json({
@@ -70,28 +74,47 @@ export async function POST(req: Request) {
         });
       }
 
-      const topResult = topResults[0];
-
-      let webPageContent;
+      const allWebPageContent = await Promise.all(topResults.map(async page => {
+        try {
+          // Scrape the web page content
+          const webPageContent = await scrapeWebPage(page.link);
+          return { title: page.title, link: page.link, content: webPageContent };
+        } catch (error) {
+          console.error(`Error scraping web page - ${page.title}:`, error);
+          return null; // Return null or handle the error gracefully
+        }
+      }));
+      
       try {
-        webPageContent = await scrapeWebPage(topResult.link);
-        if (webPageContent) {
-          if (webPageContent.length > 5000) {
-            webPageContent = webPageContent.substring(0, 5000);
-          }
+        // Scrape the web page content
+        if (allWebPageContent) {
           const finalPrompt = `
-          <article>
-          ${webPageContent}
-          </article>
+          <Google Query>
+            ${googleQuery}
+          </Google Query>
+
+          found ${allWebPageContent.length} results:
+          ${allWebPageContent.map((page, index) => `
+          <Web Page ${index + 1}>
+            Title: ${page?.title}
+            Link: ${page?.link}
+            Content: ${page?.content}
+          </Web Page ${index + 1}>
+          `).join("\n")}
+          
 
           <user query>
-          ${userMessage.content}
+            ${userMessage.content}
           </user query>
           `;
+
+          console.log("finalPrompt:", finalPrompt);
+          
+          // Update the user message content with the scraped content
           userMessage.content = finalPrompt;
         }
       } catch (error) {
-        console.error(`Error scraping web page - ${topResult.title}:`, error);
+        console.error(`Error scraping web pages:`, error);
         return NextResponse.json({
           status: 500,
           body: "Failed to scrape a web page",
@@ -99,8 +122,8 @@ export async function POST(req: Request) {
       }
     }
 
+    // Generate a response  
     try {
-      console.log("userMessage:", userMessage);
       const messagesWithoutLastMessage = messages.slice(0, -1);
       completion = await client.chat.completions.create({
         messages: [
