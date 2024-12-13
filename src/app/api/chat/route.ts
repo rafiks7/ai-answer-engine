@@ -7,11 +7,17 @@ import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import { getTopResultsFromGoogle, scrapeWebPage } from "@/app/utils/scraper";
 import { systemPrompt, webSystemPrompt } from "@/app/utils/prompts";
+import { Redis } from "@upstash/redis";
 
 type Message = {
   role: "user" | "assistant" | "system" | "ai";
   content: string;
 };
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 export async function POST(req: Request) {
   try {
@@ -56,16 +62,15 @@ export async function POST(req: Request) {
       numberOfArticles = JSON.parse(response).max_articles;
     }
 
-    console.log("searchNeeded:", searchNeeded);
-    console.log("googleQuery:", googleQuery);
-    console.log("numberOfArticles:", numberOfArticles);
-
     // if a search is needed, get the top search results from Google
     if (searchNeeded) {
       let topResults;
       try {
         // Get the top search results from Google
-        topResults = await getTopResultsFromGoogle(googleQuery, numberOfArticles);
+        topResults = await getTopResultsFromGoogle(
+          googleQuery,
+          numberOfArticles
+        );
       } catch (error) {
         console.error("Error fetching search results:", error);
         return NextResponse.json({
@@ -74,17 +79,35 @@ export async function POST(req: Request) {
         });
       }
 
-      const allWebPageContent = await Promise.all(topResults.map(async page => {
-        try {
-          // Scrape the web page content
-          const webPageContent = await scrapeWebPage(page.link);
-          return { title: page.title, link: page.link, content: webPageContent };
-        } catch (error) {
-          console.error(`Error scraping web page - ${page.title}:`, error);
-          return null; // Return null or handle the error gracefully
-        }
-      }));
-      
+      const allWebPageContent = await Promise.all(
+        topResults.map(async page => {
+          try {
+            // check if it is cached
+            const cachedContent = await redis.get(page.link);
+            if (cachedContent) {
+              console.log('no need to scrape already in cache', page.link);
+              return {
+                title: page.title,
+                link: page.link,
+                content: cachedContent,
+              };
+            } else {
+              console.log('scraping web page', page.link);
+              // Scrape the web page content
+              const webPageContent = await scrapeWebPage(page.link);
+              return {
+                title: page.title,
+                link: page.link,
+                content: webPageContent,
+              };
+            }
+          } catch (error) {
+            console.error(`Error scraping web page - ${page.title}:`, error);
+            return null; // Return null or handle the error gracefully
+          }
+        })
+      );
+
       try {
         // Scrape the web page content
         if (allWebPageContent) {
@@ -94,19 +117,23 @@ export async function POST(req: Request) {
           </Google Query>
 
           found ${allWebPageContent.length} results:
-          ${allWebPageContent.map((page, index) => `
+          ${allWebPageContent
+            .map(
+              (page, index) => `
           <Web Page ${index + 1}>
             Title: ${page?.title}
             Link: ${page?.link}
             Content: ${page?.content}
           </Web Page ${index + 1}>
-          `).join("\n")}
+          `
+            )
+            .join("\n")}
           
 
           <user query>
             ${userMessage.content}
           </user query>
-          `;          
+          `;
           // Update the user message content with the scraped content
           userMessage.content = finalPrompt;
         }
@@ -120,7 +147,7 @@ export async function POST(req: Request) {
     }
     console.log("userMessage:", userMessage);
 
-    // Generate a response  
+    // Generate a response
     try {
       const messagesWithoutLastMessage = messages.slice(0, -1);
       completion = await client.chat.completions.create({
@@ -136,7 +163,6 @@ export async function POST(req: Request) {
       });
 
       response = completion.choices[0].message.content;
-      console.log("response:", response);
     } catch (error) {
       console.error("Error generating a response:", error);
       return NextResponse.json({

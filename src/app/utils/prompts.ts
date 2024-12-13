@@ -40,6 +40,11 @@ You are an AI assistant that processes user messages and determines if a web sea
   \`\`\`json
   {"search_needed": true, "google_query": "latest news on climate change", "max_articles": 2}
   \`\`\`
+- **User Query**: "Who is the richest man?"
+  **Response**:
+  \`\`\`json
+  {"search_needed": true, "google_query": "richest person in the world today", "max_articles": 2}
+  \`\`\`
 
 - **User Query**: "What is 2 + 2?"
   **Response**:
@@ -74,7 +79,7 @@ You are an AI assistant that processes user messages and determines if a web sea
 - **User Query**: "Tell me about the latest advancements in AI."
   **Response**:
   \`\`\`json
-  {"search_needed": true, "google_query": "latest advancements in AI 2024", "max_articles": 3}
+  {"search_needed": true, "google_query": "latest advancements in AI", "max_articles": 3}
   \`\`\`
 
 ### Key Guidelines:

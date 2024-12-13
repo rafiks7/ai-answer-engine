@@ -1,6 +1,12 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import puppeteer from "puppeteer";
+import {Redis} from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 const getTopResultsFromGoogle = async (
   query: string,
@@ -104,9 +110,7 @@ const scrapeWithPuppeteer = async (url: string): Promise<string> => {
 
     await browser.close();
 
-    console.log("cleaned puppeteer content:", mainContent);
-
-    return mainContent.slice(0, 10000); // Return the first 10,000 characters of cleaned content
+    return mainContent;
   } catch (error) {
     console.error("Error scraping with Puppeteer:", error);
     return "no content found";
@@ -123,8 +127,8 @@ const scrapeWithCheerio = async (url: string): Promise<string> => {
       const content = $(selector).text();
       webContent += `${content}\n`;
     });
-    console.log("full cheerio content:", webContent);
-    return webContent.slice(0, 10000);
+
+    return webContent;
   } catch (error) {
     console.error("Error scraping with Cheerio:", error);
     return "no content found";
@@ -134,11 +138,18 @@ const scrapeWithCheerio = async (url: string): Promise<string> => {
 const scrapeWebPage = async (url: string): Promise<string> => {
   const method = await determineScrapingMethod(url);
   console.log("scraping method:", method);
+  let webContent = "";
   if (method === "puppeteer") {
-    return scrapeWithPuppeteer(url);
+    webContent = await scrapeWithPuppeteer(url);
   } else {
-    return scrapeWithCheerio(url);
+    webContent = await scrapeWithCheerio(url);
   }
+
+  // cache the web content
+  console.log("caching web content for", url);
+  await redis.set(url, webContent, {ex: 7 * 24 * 60 * 60}); // cache for 7 days
+
+  return webContent.slice(0, 7000);
 };
 
 export { getTopResultsFromGoogle, scrapeWebPage };
