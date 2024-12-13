@@ -14,7 +14,6 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   
-  
   const handleSend = async () => {
     if (!message.trim()) return;
 
