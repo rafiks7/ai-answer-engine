@@ -106,10 +106,7 @@ export async function POST(req: Request) {
           <user query>
             ${userMessage.content}
           </user query>
-          `;
-
-          console.log("finalPrompt:", finalPrompt);
-          
+          `;          
           // Update the user message content with the scraped content
           userMessage.content = finalPrompt;
         }
@@ -121,6 +118,7 @@ export async function POST(req: Request) {
         });
       }
     }
+    console.log("userMessage:", userMessage);
 
     // Generate a response  
     try {
@@ -138,6 +136,7 @@ export async function POST(req: Request) {
       });
 
       response = completion.choices[0].message.content;
+      console.log("response:", response);
     } catch (error) {
       console.error("Error generating a response:", error);
       return NextResponse.json({

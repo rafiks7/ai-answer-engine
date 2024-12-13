@@ -107,6 +107,7 @@ You may be given web content or supplementary information to enhance your respon
     PLEASE PLEASE AVOID "Based on the provided web pages," or "According to the articles," or any similar phrasing.
 
 Ensure your response is comprehensive and polished, providing users with confidence in your expertise. Always cite your sources with a simple URL reference when necessary.
+Return answer in approparite markdown format only.
 `;
 
 export { systemPrompt, webSystemPrompt };
