@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       });
     }
 
-    let response = completion.choices[0].message.content;
+    const response = completion.choices[0].message.content;
     let searchNeeded = false;
     let googleQuery = "";
     let numberOfArticles = 0;
