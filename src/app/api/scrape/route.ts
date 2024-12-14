@@ -80,13 +80,13 @@ export async function POST(req: Request) {
         topResults.map(async page => {
           try {
             // check if it is cached
-            const cachedContent = await redis.get(`scrape ${page.link}`);
+            const cachedContent = await redis.get(`scrape ${page.link}`) as string;
             if (cachedContent) {
               console.log("no need to scrape already in cache", page.link);
               return {
                 title: page.title,
                 link: page.link,
-                content: cachedContent,
+                content: cachedContent.slice(0, 5000),
               };
             } else {
               console.log("scraping web page", page.link);
