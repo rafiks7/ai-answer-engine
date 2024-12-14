@@ -123,7 +123,6 @@ const scrapeWithCheerio = async (url: string): Promise<string> => {
   try {
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
-    const title = $("title").text();
     let webContent = ``;
     selectors.forEach(selector => {
       const content = $(selector).text();

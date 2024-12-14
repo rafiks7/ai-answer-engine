@@ -20,24 +20,29 @@ const ratelimit = new Ratelimit({
 
 export async function middleware(request: NextRequest) {
   try {
-
-    const ip = request.headers.get("x-forwarded-for") ?? '127.0.0.1';
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
 
-    const response = success 
-    ? NextResponse.next()
-    : NextResponse.json({
-      status: 429,
-      body: `Rate limit exceeded. Try again in ${reset} seconds.`,
-    });
+    const response = success
+      ? NextResponse.next()
+      : NextResponse.json({
+          status: 429,
+          body: `Rate limit exceeded. Try again in ${reset} seconds.`,
+        });
 
     response.headers.set("X-RateLimit-Limit", limit.toString());
     response.headers.set("X-RateLimit-Remaining", remaining.toString());
     response.headers.set("X-RateLimit-Reset", reset.toString());
 
     return response;
-  } catch (error) {}
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({
+      status: 500,
+      body: "Failed to rate limit",
+    });
+  }
 }
 
 // Configure which paths the middleware runs on
