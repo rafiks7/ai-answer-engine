@@ -329,7 +329,7 @@ function Home() {
   );
 }
 
-export function HomePage() {
+export default function HomePage() {
   return (
     <Suspense
       fallback={
