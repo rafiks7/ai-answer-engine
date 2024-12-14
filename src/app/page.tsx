@@ -96,7 +96,7 @@ function Home() {
       });
 
       const data = await response.json();
-      const { finalPrompt } = data.finalPrompt;
+      const finalPrompt  = data.finalPrompt;
       if (finalPrompt) {
         userMessageContent = finalPrompt;
       }
