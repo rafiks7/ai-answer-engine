@@ -1,7 +1,8 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import puppeteer from "puppeteer";
-import {Redis} from "@upstash/redis";
+import puppeteer from "puppeteer-core";
+import chromium from "chrome-aws-lambda";
+import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -85,7 +86,17 @@ const selectors = [
 
 const scrapeWithPuppeteer = async (url: string): Promise<string> => {
   try {
-    const browser = await puppeteer.launch();
+    const executablePath = await chromium.executablePath;
+    if (!executablePath) {
+      throw new Error("Chromium is not available");
+    }
+
+    const browser = await puppeteer.launch({
+      args: chromium.args,
+      executablePath,
+      headless: chromium.headless,
+      defaultViewport: chromium.defaultViewport,
+    });
     const page = await browser.newPage();
     await page.goto(url);
 
@@ -148,8 +159,10 @@ const scrapeWebPage = async (url: string): Promise<string> => {
 
   // cache the web content
   console.log("caching web content for", url);
-  
-  await redis.set(`scrape ${url}`, webContent.slice(0, MAX_CACHE_SIZE), {ex: 7 * 24 * 60 * 60}); // cache for 7 days
+
+  await redis.set(`scrape ${url}`, webContent.slice(0, MAX_CACHE_SIZE), {
+    ex: 7 * 24 * 60 * 60,
+  }); // cache for 7 days
 
   return webContent.slice(0, 5000);
 };
