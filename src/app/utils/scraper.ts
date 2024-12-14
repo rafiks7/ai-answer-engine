@@ -149,7 +149,7 @@ const scrapeWebPage = async (url: string): Promise<string> => {
   // cache the web content
   console.log("caching web content for", url);
   
-  await redis.set(`scrape url`, webContent.slice(0, MAX_CACHE_SIZE), {ex: 7 * 24 * 60 * 60}); // cache for 7 days
+  await redis.set(`scrape ${url}`, webContent.slice(0, MAX_CACHE_SIZE), {ex: 7 * 24 * 60 * 60}); // cache for 7 days
 
   return webContent.slice(0, 7000);
 };
