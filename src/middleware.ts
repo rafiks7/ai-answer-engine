@@ -14,7 +14,7 @@ const redis = new Redis({
 
 const ratelimit = new Ratelimit({
   redis: redis,
-  limiter: Ratelimit.slidingWindow(10, "60 s"),
+  limiter: Ratelimit.slidingWindow(20, "60 s"),
   analytics: true,
 });
 
@@ -23,12 +23,13 @@ export async function middleware(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
     const { success, limit, reset, remaining } = await ratelimit.limit(ip);
+    const remainingTime = Math.floor(reset - Date.now() / 1000);
 
     const response = success
       ? NextResponse.next()
       : NextResponse.json({
           status: 429,
-          body: `Rate limit exceeded. Try again in ${reset} seconds.`,
+          body: `Rate limit exceeded. Try again in ${remainingTime} seconds.`,
         });
 
     response.headers.set("X-RateLimit-Limit", limit.toString());
