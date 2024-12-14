@@ -4,7 +4,7 @@
 
 First, clone the repository and install the dependencies:
 ```bash
-git clone https://github.com/team-headstart/ai-answer-engine.git
+git clone https://github.com/rafiks7/ai-answer-engine.git
 ```
 
 Navigate to the project directory:
@@ -24,16 +24,6 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-## Tasks
-
-- Take a look at the TODOs throughout the repo, namely:
-
-    - `src/app/page.tsx`: Update the UI and handle the API response as needed
- 
-    - `src/app/api/chat/route.ts`: Implement the chat API with Groq and web scraping with Cheerio and Puppeteer
- 
-    - `src/middleware.ts`: Implement the code here to add rate limiting with Redis
 
 
 ## Learn More
