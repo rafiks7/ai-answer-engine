@@ -1,24 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, Send } from "lucide-react";
+import { ChevronLeft, Send, Share } from "lucide-react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import ReactDom from "react-dom";
+import { useSearchParams, useRouter } from "next/navigation";
+import { toast, ToastContainer } from "react-toastify";
 
 type Message = {
   role: "user" | "ai";
   content: string;
 };
 
+
 export default function Home() {
+  const router = useRouter();
+
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { role: "ai", content: "Hello! How can I help you today?" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const searchParams = useSearchParams();
+  let id = searchParams.get("id");
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch(`/api/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id }),
+        }
+        );
+        const data = await response.json();
+        console.log("data", data.body);
+        setMessages(data.body);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+
+    fetchMessages(); // Call the async function
+  }, []);
+
   const handleSend = async () => {
+    console.log("id", id);
     if (!message.trim()) return;
 
     const userMessage = { role: "user" as const, content: message };
@@ -26,22 +58,42 @@ export default function Home() {
     setMessage("");
     setIsLoading(true);
 
+    if (!id) {
+      id = "new";
+    }
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ messages: [...messages, userMessage], id: id }),
       });
 
       const data = await response.json();
-      const aiMessage: Message = { role: "ai", content: data.body };
+      const aiMessage: Message = { role: "ai", content: data.message };
       setMessages(prev => [...prev, aiMessage]);
+
+      if (data.id && id !== data.id) {
+        id = data.id;
+        router.push(`/?id=${id}`);
+      }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      // copy current link to clipboard
+      await navigator.clipboard.writeText(window.location.href);
+      // alert user
+      alert("Link copied to clipboard!");
+    } catch (error) {
+      console.error("Error sharing:", error);
     }
   };
 
@@ -54,7 +106,7 @@ export default function Home() {
         transition={{ duration: 0.5 }}
         className="bg-black bg-opacity-30 backdrop-blur-lg border-b border-blue-500 border-opacity-30 p-4"
       >
-        <div className="max-w-5xl mx-auto flex items-center">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <button className="mr-4 text-blue-300 hover:text-blue-100 transition-colors">
             <ChevronLeft size={24} />
           </button>
@@ -65,6 +117,14 @@ export default function Home() {
               Online
             </div>
           </div>
+          {/* Share button on the far right */}
+          <button
+            className="flex items-center text-white bg-green-800 p-3 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300"
+            onClick={handleShare}
+          >
+            <Share size={20} className="mr-2" />
+            <span className="text-sm">Share</span>
+          </button>
         </div>
       </motion.div>
 

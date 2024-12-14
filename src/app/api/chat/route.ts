@@ -19,6 +19,10 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+const generateId = (): string => {
+  return [...Array(20)].map(() => Math.random().toString(36)[2]).join("");
+};
+
 export async function POST(req: Request) {
   try {
     const client = new Groq({
@@ -26,7 +30,7 @@ export async function POST(req: Request) {
     });
 
     // Get the messages from the request body
-    const { messages } = await req.json();
+    const { messages, id } = await req.json();
     const userMessage = messages[messages.length - 1];
 
     let completion;
@@ -83,16 +87,16 @@ export async function POST(req: Request) {
         topResults.map(async page => {
           try {
             // check if it is cached
-            const cachedContent = await redis.get(page.link);
+            const cachedContent = await redis.get(`scrape ${page.link}`);
             if (cachedContent) {
-              console.log('no need to scrape already in cache', page.link);
+              console.log("no need to scrape already in cache", page.link);
               return {
                 title: page.title,
                 link: page.link,
                 content: cachedContent,
               };
             } else {
-              console.log('scraping web page', page.link);
+              console.log("scraping web page", page.link);
               // Scrape the web page content
               const webPageContent = await scrapeWebPage(page.link);
               return {
@@ -171,7 +175,25 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ status: 200, body: response });
+    // cache messages
+    let chatId = id;
+    if (id == "new") {
+      chatId = generateId();
+      await redis.set(
+        `chat ${chatId}`,
+        JSON.stringify([...messages, { role: "ai", content: response }]),
+        { ex: 7 * 24 * 60 * 60 }
+      );
+    } else {
+      const ttl = await redis.ttl(`chat ${chatId}`);
+      await redis.set(
+        `chat ${chatId}`,
+        JSON.stringify([...messages, { role: "ai", content: response }]),
+        { ex: ttl }
+      );
+    }
+
+    return NextResponse.json({ status: 200, message: response, id: chatId });
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json({ status: 500, body: "Internal Server Error" });
