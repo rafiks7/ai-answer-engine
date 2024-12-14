@@ -1,7 +1,7 @@
 /* eslint-disable */
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { ChevronLeft, Send, Share, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -21,9 +21,19 @@ function Home() {
     { role: "ai", content: "Hello! How can I help you today?" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
 
   const searchParams = useSearchParams();
   let id = searchParams.get("id");
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // Scroll to the bottom of the messages container whenever messages change
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]); // Trigger this effect whenever messages change
 
   useEffect(() => {
     if (!id) {
@@ -57,7 +67,7 @@ function Home() {
       }
     };
 
-    fetchMessages(); // Call the async function
+    fetchMessages();
   }, []);
 
   const handleSend = async () => {
@@ -73,16 +83,43 @@ function Home() {
       id = "new";
     }
 
+    let userMessageContent = userMessage.content;
+    // Scrape the web for the user message
+    setIsScraping(true);
+    try {
+      const response = await fetch("/api/scrape", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
+      });
+
+      const data = await response.json();
+      const { finalPrompt } = data.finalPrompt;
+      if (finalPrompt) {
+        userMessageContent = finalPrompt;
+      }
+    } catch (error) {
+      console.log("Error scraping web:", error);
+      return;
+    }
+    setIsScraping(false);
+    // Send the user message to the AI
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: [...messages, userMessage], id: id }),
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          finalPrompt: userMessageContent,
+          id: id,
+        }),
       });
-
       const data = await response.json();
+
       const aiMessage: Message = { role: "ai", content: data.message };
       setMessages(prev => [...prev, aiMessage]);
 
@@ -286,14 +323,25 @@ function Home() {
             >
               <div className="bg-blue-800 bg-opacity-70 text-blue-100 px-4 py-2 rounded-2xl">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse [animation-delay:-0.5s]"></div>
+                  {isScraping ? (
+                    <>
+                      <span className="text-sm text-blue-300 mr-2">
+                        Scraping...
+                      </span>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse [animation-duration:500ms]"></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse [animation-duration:500ms] [animation-delay:-0.3s]"></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse [animation-duration:500ms] [animation-delay:-0.5s]"></div>
+                    </>
+                  ) : (
+                    <span className="text-sm text-blue-300">Thinking...</span>
+                  )}
                 </div>
               </div>
             </motion.div>
           )}
         </div>
+        {/* Empty div to scroll to the bottom of the messages container */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
