@@ -5,13 +5,12 @@ import { ChevronLeft, Send, Share } from "lucide-react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { useSearchParams, useRouter } from "next/navigation";
-import { toast, ToastContainer } from "react-toastify";
+import toast, { Toaster } from "react-hot-toast";
 
 type Message = {
   role: "user" | "ai";
   content: string;
 };
-
 
 export default function Home() {
   const router = useRouter();
@@ -36,11 +35,14 @@ export default function Home() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ id }),
-        }
-        );
+        });
         const data = await response.json();
         console.log("data", data.body);
-        setMessages(data.body);
+        if (data.status == 404) {
+          router.push("/");
+        } else {
+          setMessages(data.body);
+        }
       } catch (error) {
         console.error("Error fetching messages:", error);
       }
@@ -91,7 +93,7 @@ export default function Home() {
       // copy current link to clipboard
       await navigator.clipboard.writeText(window.location.href);
       // alert user
-      alert("Link copied to clipboard!");
+      toast.success("Link copied to clipboard!");
     } catch (error) {
       console.error("Error sharing:", error);
     }
@@ -99,6 +101,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900">
+     
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -122,6 +125,7 @@ export default function Home() {
             className="flex items-center text-white bg-green-800 p-3 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300"
             onClick={handleShare}
           >
+            <Toaster />
             <Share size={20} className="mr-2" />
             <span className="text-sm">Share</span>
           </button>
