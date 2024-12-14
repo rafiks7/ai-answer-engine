@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import { getTopResultsFromGoogle, scrapeWebPage } from "@/app/utils/scraper";
-import { systemPrompt, webSystemPrompt } from "@/app/utils/prompts";
+import { webSystemPrompt } from "@/app/utils/prompts";
 import { Redis } from "@upstash/redis";
 
 type Message = {
